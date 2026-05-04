@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bibliothecary</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800;900&family=DM+Serif+Display:ital@0;1&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0f0f0f;--surface:#1a1a1a;--surface2:#222222;--border:#2c2c2c;--text:#e8e8e8;--text-muted:#a7a7a7;--highlight:#e8e8e8}
+    body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh}
+    header{text-align:center;padding:24px 48px;border-bottom:1px solid var(--border)}
+    header h1{font-family:'Inter',sans-serif;font-size:clamp(2.4rem,6vw,4rem);color:var(--highlight);font-weight:800;letter-spacing:-0.1em;line-height:1.1}
+    .header-sub{color:var(--text-muted);font-size:0.8rem;margin-top:12px;letter-spacing:0.05em;text-transform:uppercase}
+    .year-filter-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .year-btn{background:transparent;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:0.72rem;font-weight:600;letter-spacing:1px;padding:6px 14px;cursor:pointer;transition:all 0.15s;text-transform:uppercase}
+    .year-btn:hover{border-color:var(--text-muted);color:var(--text)}
+    .year-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+    main{max-width:1300px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:48px}
+    .section-title{font-size:1.3rem;font-weight:600;color:var(--text);margin-bottom:20px;margin-top:36px;display:flex;align-items:center;gap:16px}
+    .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--border);border:1px solid var(--border)}
+    .stat-card{background:var(--surface);padding:28px 20px;text-align:center}
+    .stat-value{font-size:1.8rem;font-weight:900;color:var(--highlight);line-height:1}
+    .stat-label{font-size:0.8rem;font-weight:500;color:var(--text-muted);margin-top:8px}
+    .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);overflow:hidden}
+    .chart-card{background:var(--surface);padding:24px}
+    .chart-card.wide{grid-column:1/-1;overflow-x:auto}
+    .chart-title{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:24px}
+    .chart-wrap{position:relative;height:260px}
+    .chart-wrap.tall{height:340px}
+    .chart-wrap.wide-min{min-width:500px}
+    #cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1px;background:var(--border);border:1px solid var(--border)}
+    .cover-cell{position:relative;aspect-ratio:2/3;background:var(--surface2);overflow:hidden}
+    .cover-cell img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.2s}
+    .cover-cell:hover img{opacity:0.3}
+    .cover-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:8px;opacity:0;transition:opacity 0.2s;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 60%)}
+    .cover-cell:hover .cover-overlay{opacity:1}
+    .cover-title{font-size:0.7rem;font-weight:600;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .cover-author{font-size:0.62rem;color:var(--text-muted);margin-top:2px}
+    .cover-rating{font-size:0.68rem;font-weight:700;color:var(--text);margin-top:4px}
+    .cover-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;text-align:center;gap:6px}
+    .cover-placeholder .ph-title{font-size:0.65rem;font-weight:600;color:var(--text-muted);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
+    .cover-placeholder .ph-author{font-size:0.58rem;color:#555}
+    #perfect-book-card{background:var(--surface);border:1px solid var(--border);padding:28px 32px;font-family:'DM Serif Display',serif;font-size:clamp(1rem,2.5vw,1.35rem);color:var(--text-muted);line-height:1.8;font-style:italic}
+    #loading{display:none;text-align:center;padding:60px 20px;color:var(--text-muted);font-size:0.8rem;letter-spacing:3px;text-transform:uppercase}
+    .spinner{display:inline-block;width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--text-muted);border-radius:50%;animation:spin 0.9s linear infinite;margin-bottom:16px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #error-msg{display:none;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:4px;padding:24px 28px;font-size:0.85rem;line-height:1.8;max-width:700px;margin:32px auto}
+    footer{text-align:center;padding:24px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;border-top:1px solid var(--border)}
+    footer a{color:var(--text-muted);text-decoration:none}
+    footer a:hover{color:var(--text)}
+    @media(max-width:600px){.charts-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}#cover-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Bibliothecary</h1>
+  <p class="header-sub">Personal Reading Dashboard</p>
+</header>
+
+<div class="year-filter-bar" id="year-filter-bar">
+  <button class="year-btn active" data-year="all" onclick="setYear('all')">All Time</button>
+</div>
+
+<div id="loading"><div class="spinner"></div><br>Loading data…</div>
+<div id="error-msg"></div>
+
+<main id="main-content" style="display:none;">
+
+  <div>
+    <div class="section-title">Overview</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value" id="stat-books">—</div><div class="stat-label">Books Read</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-pages">—</div><div class="stat-label">Pages Read</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-avg-rating">—</div><div class="stat-label">Avg Rating</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-authors">—</div><div class="stat-label">Unique Authors</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-avg-pages">—</div><div class="stat-label">Avg Pages / Book</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-rereads">—</div><div class="stat-label">Rereads</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Reading Activity</div>
+    <div class="charts-grid">
+      <div class="chart-card wide">
+        <div class="chart-title">Books Read by Month</div>
+        <div class="chart-wrap wide-min"><canvas id="chart-timeline"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Ratings Distribution</div>
+        <div class="chart-wrap"><canvas id="chart-ratings"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Pages Read by Month</div>
+        <div class="chart-wrap"><canvas id="chart-pages-month"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Breakdown</div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Genre Breakdown</div>
+        <div class="chart-wrap tall"><canvas id="chart-genre"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Source Breakdown</div>
+        <div class="chart-wrap tall"><canvas id="chart-source"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Most-Read Authors</div>
+        <div class="chart-wrap tall"><canvas id="chart-authors"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">My Perfect Book</div>
+    <div id="perfect-book-card">—</div>
+  </div>
+
+  <div>
+    <div class="section-title">All Books</div>
+    <div id="cover-grid"></div>
+  </div>
+
+</main>
+
+<footer>
+  <a href="book-log.html">+ Log a Book</a>
+</footer>
+
+<script>
+  // TODO: Replace with your published Google Sheet CSV URL
+  // Sheet → File → Share → Publish to web → Books sheet → CSV → copy link
+  const SHEET_CSV_URL = "YOUR_SHEET_CSV_URL_HERE";
+
+  const COL = { timestamp:0, title:1, author:2, year:3, genre:4, pages:5, gbId:6, coverUrl:7, dateRead:8, source:9, reread:10, rating:11 };
+
+  const PALETTE = ['#c8c8c8','#a0a0a0','#787878','#585858','#909090','#b0b0b0','#686868','#989898','#d0d0d0','#505050','#808080','#c0c0c0'];
+
+  let ALL_ROWS = [], activeYear = 'all', charts = {};
+
+  document.addEventListener('DOMContentLoaded', loadData);
+
+  async function loadData() {
+    document.getElementById('loading').style.display = 'block';
+    try {
+      const res = await fetch(SHEET_CSV_URL);
+      const text = await res.text();
+      const parsed = Papa.parse(text, { skipEmptyLines: true });
+      ALL_ROWS = parsed.data.slice(1).filter(r => r[COL.title]);
+      buildYearButtons();
+      render();
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('main-content').style.display = 'flex';
+    } catch(e) {
+      document.getElementById('loading').style.display = 'none';
+      const err = document.getElementById('error-msg');
+      err.style.display = 'block';
+      err.innerHTML = '<strong>Couldn\'t load data.</strong><br>Make sure <code>SHEET_CSV_URL</code> is set to your published Google Sheet CSV link.<br><br><em>Sheet → File → Share → Publish to web → select the Books sheet → CSV format → copy link</em>';
+    }
+  }
+
+  function buildYearButtons() {
+    const years = new Set();
+    ALL_ROWS.forEach(r => { const d = r[COL.dateRead]; if(d){ const y=new Date(d).getFullYear(); if(!isNaN(y)) years.add(y); }});
+    const bar = document.getElementById('year-filter-bar');
+    [...years].sort().forEach(y => {
+      const btn = document.createElement('button');
+      btn.className='year-btn'; btn.dataset.year=y; btn.textContent=y;
+      btn.onclick=()=>setYear(y);
+      bar.appendChild(btn);
+    });
+  }
+
+  function setYear(y) {
+    activeYear = y;
+    document.querySelectorAll('.year-btn').forEach(b => b.classList.toggle('active', b.dataset.year==y||(y==='all'&&b.dataset.year==='all')));
+    render();
+  }
+
+  function filteredRows() {
+    if(activeYear==='all') return ALL_ROWS;
+    return ALL_ROWS.filter(r=>{ const d=r[COL.dateRead]; return d&&new Date(d).getFullYear()==activeYear; });
+  }
+
+  function render() {
+    const rows = filteredRows();
+    renderStats(rows); renderTimeline(rows); renderRatings(rows); renderPagesMonth(rows);
+    renderGenre(rows); renderSource(rows); renderAuthors(rows); renderPerfectBook(rows); renderCoverGrid(rows);
+  }
+
+  function makeChart(id, type, labels, datasets, options={}) {
+    if(charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id).getContext('2d');
+    const base = {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales: (type==='bar'||type==='line') ? {
+        x:{grid:{display:false},ticks:{color:'#a7a7a7',font:{size:11}},border:{color:'#414141'}},
+        y:{grid:{color:'#1f1f1f'},ticks:{color:'#a7a7a7',font:{size:11}},border:{color:'#414141'}}
+      } : {}
+    };
+    charts[id] = new Chart(ctx, { type, data:{labels,datasets}, options:deepMerge(base,options) });
+  }
+
+  function deepMerge(t,s) {
+    const o=Object.assign({},t);
+    for(const k of Object.keys(s)) {
+      if(s[k]&&typeof s[k]==='object'&&!Array.isArray(s[k])) o[k]=deepMerge(t[k]||{},s[k]);
+      else o[k]=s[k];
+    }
+    return o;
+  }
+
+  function avg(arr){ return arr.reduce((s,v)=>s+v,0)/arr.length; }
+  function set(id,v){ document.getElementById(id).textContent=v; }
+
+  function renderStats(rows) {
+    const rated = rows.filter(r=>r[COL.rating]&&!isNaN(+r[COL.rating]));
+    const avgRating = rated.length ? (rated.reduce((s,r)=>s+(+r[COL.rating]),0)/rated.length).toFixed(1) : '—';
+    const paged = rows.filter(r=>r[COL.pages]&&!isNaN(+r[COL.pages]));
+    const totPgs = paged.reduce((s,r)=>s+(+r[COL.pages]),0);
+    const avgPgs = paged.length ? Math.round(totPgs/paged.length) : 0;
+    const authors = new Set(rows.map(r=>r[COL.author]).filter(Boolean));
+    const rereads = rows.filter(r=>(r[COL.reread]||'').toLowerCase()==='reread').length;
+    set('stat-books',rows.length.toLocaleString());
+    set('stat-pages',totPgs.toLocaleString());
+    set('stat-avg-rating',avgRating);
+    set('stat-authors',authors.size.toLocaleString());
+    set('stat-avg-pages',avgPgs.toLocaleString());
+    set('stat-rereads',rereads.toLocaleString());
+  }
+
+  function renderTimeline(rows) {
+    const counts={};
+    rows.forEach(r=>{ const d=r[COL.dateRead]; if(!d) return; const dt=new Date(d); if(isNaN(dt)) return; const k=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; counts[k]=(counts[k]||0)+1; });
+    const keys=Object.keys(counts).sort();
+    const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labels=keys.map(k=>{ const [y,m]=k.split('-'); return `${months[+m-1]} '${y.slice(2)}`; });
+    makeChart('chart-timeline','bar',labels,[{data:keys.map(k=>counts[k]),backgroundColor:PALETTE[0],borderRadius:2}]);
+  }
+
+  function renderRatings(rows) {
+    const counts={};
+    for(let i=1;i<=10;i++) counts[i]=0;
+    rows.forEach(r=>{ const v=+r[COL.rating]; if(v>=1&&v<=10) counts[v]++; });
+    makeChart('chart-ratings','bar',Object.keys(counts),[{data:Object.values(counts),backgroundColor:PALETTE[0],borderRadius:2}],
+      {scales:{x:{grid:{display:false},ticks:{color:'#a7a7a7'},border:{color:'#414141'}},y:{grid:{color:'#1f1f1f'},ticks:{color:'#a7a7a7',stepSize:1},border:{color:'#414141'}}}});
+  }
+
+  function renderPagesMonth(rows) {
+    const totals={};
+    rows.forEach(r=>{ const d=r[COL.dateRead]; const p=+r[COL.pages]; if(!d||!p||isNaN(p)) return; const dt=new Date(d); if(isNaN(dt)) return; const k=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; totals[k]=(totals[k]||0)+p; });
+    const keys=Object.keys(totals).sort();
+    const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labels=keys.map(k=>{ const [y,m]=k.split('-'); return `${months[+m-1]} '${y.slice(2)}`; });
+    makeChart('chart-pages-month','bar',labels,[{data:keys.map(k=>totals[k]),backgroundColor:PALETTE[2],borderRadius:2}]);
+  }
+
+  function renderGenre(rows) {
+    const counts={};
+    rows.forEach(r=>{ const g=(r[COL.genre]||'').trim(); if(g) counts[g]=(counts[g]||0)+1; });
+    const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    makeChart('chart-genre','bar',sorted.map(e=>e[0]),[{data:sorted.map(e=>e[1]),backgroundColor:sorted.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:2}],
+      {indexAxis:'y',scales:{x:{grid:{color:'#1f1f1f'},ticks:{color:'#a7a7a7',stepSize:1},border:{color:'#414141'}},y:{grid:{display:false},ticks:{color:'#a7a7a7',font:{size:10}},border:{color:'#414141'}}}});
+  }
+
+  function renderSource(rows) {
+    const counts={};
+    rows.forEach(r=>{ const s=(r[COL.source]||'').trim(); if(s) counts[s]=(counts[s]||0)+1; });
+    const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    makeChart('chart-source','bar',sorted.map(e=>e[0]),[{data:sorted.map(e=>e[1]),backgroundColor:sorted.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:2}],
+      {indexAxis:'y',scales:{x:{grid:{color:'#1f1f1f'},ticks:{color:'#a7a7a7',stepSize:1},border:{color:'#414141'}},y:{grid:{display:false},ticks:{color:'#a7a7a7',font:{size:10}},border:{color:'#414141'}}}});
+  }
+
+  function renderAuthors(rows) {
+    const counts={};
+    rows.forEach(r=>{ const a=(r[COL.author]||'').trim(); if(a) counts[a]=(counts[a]||0)+1; });
+    const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    makeChart('chart-authors','bar',sorted.map(e=>e[0]),[{data:sorted.map(e=>e[1]),backgroundColor:PALETTE[0],borderRadius:2}],
+      {indexAxis:'y',scales:{x:{grid:{color:'#1f1f1f'},ticks:{color:'#a7a7a7',stepSize:1},border:{color:'#414141'}},y:{grid:{display:false},ticks:{color:'#a7a7a7',font:{size:10}},border:{color:'#414141'}}}});
+  }
+
+  function renderPerfectBook(rows) {
+    const rated=rows.filter(r=>r[COL.rating]&&!isNaN(+r[COL.rating]));
+    function topByRating(keyFn) {
+      const map={};
+      rated.forEach(r=>{ const k=keyFn(r); if(!k) return; if(!map[k]) map[k]=[]; map[k].push(+r[COL.rating]); });
+      return Object.entries(map).filter(([,v])=>v.length>=2).sort((a,b)=>avg(b[1])-avg(a[1]))[0]?.[0];
+    }
+    const topGenre  = topByRating(r=>(r[COL.genre]||'').trim());
+    const topAuthor = topByRating(r=>(r[COL.author]||'').trim());
+    const topSource = topByRating(r=>(r[COL.source]||'').trim());
+    function hi(v){ return v ? `<span style="font-style:normal;font-weight:600;color:var(--text)">${v}</span>` : `<span style="color:var(--text-muted)">—</span>`; }
+    const el=document.getElementById('perfect-book-card');
+    if(!topGenre&&!topAuthor) { el.innerHTML='<em style="color:var(--text-muted)">Log more books to generate your perfect read.</em>'; return; }
+    el.innerHTML=`A work of ${hi(topGenre)} by ${hi(topAuthor)}, read as ${hi(topSource)}.`;
+  }
+
+  function renderCoverGrid(rows) {
+    const grid=document.getElementById('cover-grid');
+    grid.innerHTML='';
+    const sorted=[...rows].filter(r=>r[COL.title]).sort((a,b)=>new Date(b[COL.dateRead]||0)-new Date(a[COL.dateRead]||0));
+    sorted.forEach(r=>{
+      const cell=document.createElement('div');
+      cell.className='cover-cell';
+      const url=r[COL.coverUrl];
+      if(url){
+        const img=document.createElement('img');
+        img.src=url; img.alt=r[COL.title]; img.loading='lazy';
+        img.onerror=()=>{ img.remove(); cell.appendChild(makePlaceholder(r)); };
+        cell.appendChild(img);
+        const ov=document.createElement('div');
+        ov.className='cover-overlay';
+        ov.innerHTML=`<div class="cover-title">${r[COL.title]}</div><div class="cover-author">${r[COL.author]||''}</div>${r[COL.rating]?`<div class="cover-rating">${r[COL.rating]} / 10</div>`:''}`;
+        cell.appendChild(ov);
+      } else {
+        cell.appendChild(makePlaceholder(r));
+      }
+      grid.appendChild(cell);
+    });
+  }
+
+  function makePlaceholder(r){
+    const ph=document.createElement('div');
+    ph.className='cover-placeholder';
+    ph.innerHTML=`<div class="ph-title">${r[COL.title]}</div><div class="ph-author">${r[COL.author]||''}</div>${r[COL.rating]?`<div class="cover-rating" style="font-size:0.65rem;color:var(--text-muted)">${r[COL.rating]}/10</div>`:''}`;
+    return ph;
+  }
+</script>
+</body>
+</html>
