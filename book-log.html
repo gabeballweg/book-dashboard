@@ -397,8 +397,8 @@
   // TODO: Replace this with the URL of your Books Apps Script
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxga07UHpb4ug3CQukFQCqBxbZQIOcZLxKCSswu7mfwHjnqqWCUU8jbSAnjWiQRcqhh/exec";
 
-  // Google Books API — no key required for basic search
-  const GB_API = "https://www.googleapis.com/books/v1/volumes";
+  // Google Books API 
+  const GB_API = "https://www.googleapis.com/books/v1/volumes?key=AIzaSyCf1Fj7Ptbphs22IoIZlpLfxgo03uxhdjg";
 
   // ── AUTOCOMPLETE (Google Books) ───────────────────────────
   let searchTimeout = null;
@@ -413,7 +413,7 @@
 
   async function searchBooks(query) {
     try {
-      const res  = await fetch(`${GB_API}?q=${encodeURIComponent(query)}&maxResults=8&printType=books`);
+      const res = await fetch(`${GB_API}&q=${encodeURIComponent(query)}&maxResults=8&printType=books`);
       const data = await res.json();
       showList(data.items || []);
     } catch (e) {
