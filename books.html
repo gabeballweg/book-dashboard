@@ -138,9 +138,13 @@
 <script>
   // TODO: Replace with your published Google Sheet CSV URL
   // Sheet → File → Share → Publish to web → Books sheet → CSV → copy link
-  const SHEET_CSV_URL = "YOUR_SHEET_CSV_URL_HERE";
+  const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZeoz686PN-NuDpy2sRnwT7KHfzF4jabyQlQil656ubR5d8aO7dI_YlXPrAI4ESkikU3VmiZYMHvmc/pub?gid=0&single=true&output=csv";
 
-  const COL = { timestamp:0, title:1, author:2, year:3, genre:4, pages:5, gbId:6, coverUrl:7, dateRead:8, source:9, reread:10, rating:11 };
+ const COL = {
+  timestamp: 0, title: 1, author: 2, year: 3,
+  pages: 4, genre: 5, dateRead: 6, source: 7,
+  reread: 8, rating: 9,
+};
 
   const PALETTE = ['#c8c8c8','#a0a0a0','#787878','#585858','#909090','#b0b0b0','#686868','#989898','#d0d0d0','#505050','#808080','#c0c0c0'];
 
@@ -149,23 +153,25 @@
   document.addEventListener('DOMContentLoaded', loadData);
 
   async function loadData() {
-    document.getElementById('loading').style.display = 'block';
-    try {
-      const res = await fetch(SHEET_CSV_URL);
-      const text = await res.text();
-      const parsed = Papa.parse(text, { skipEmptyLines: true });
-      ALL_ROWS = parsed.data.slice(1).filter(r => r[COL.title]);
-      buildYearButtons();
-      render();
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('main-content').style.display = 'flex';
-    } catch(e) {
-      document.getElementById('loading').style.display = 'none';
-      const err = document.getElementById('error-msg');
-      err.style.display = 'block';
-      err.innerHTML = '<strong>Couldn\'t load data.</strong><br>Make sure <code>SHEET_CSV_URL</code> is set to your published Google Sheet CSV link.<br><br><em>Sheet → File → Share → Publish to web → select the Books sheet → CSV format → copy link</em>';
-    }
+  document.getElementById('loading').style.display = 'block';
+  try {
+    const url = SHEET_CSV_URL + '&t=' + Date.now();
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const parsed = Papa.parse(text, { skipEmptyLines: true });
+    ALL_ROWS = parsed.data.slice(1).filter(r => r[COL.title]);
+    buildYearButtons();
+    render();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main-content').style.display = 'flex';
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    const err = document.getElementById('error-msg');
+    err.style.display = 'block';
+    err.innerHTML = '<strong>Couldn\'t load data.</strong> Error: ' + e.message + '<br><br><em>Sheet → File → Share → Publish to web → Books sheet → CSV → copy link</em>';
   }
+}
 
   function buildYearButtons() {
     const years = new Set();
@@ -311,7 +317,7 @@
     sorted.forEach(r=>{
       const cell=document.createElement('div');
       cell.className='cover-cell';
-      const url=r[COL.coverUrl];
+      const url = null;
       if(url){
         const img=document.createElement('img');
         img.src=url; img.alt=r[COL.title]; img.loading='lazy';
